@@ -1,0 +1,94 @@
+---
+title: "Map tests"
+author: "Derek Corcoran"
+date: "`r format(Sys.time(), '%d/%m, %Y')`"
+output:
+  ioslides_presentation:
+    widescreen: true
+    incremental: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, cache = FALSE, tidy = TRUE, tidy.opts= list(blank = FALSE, width.cutoff = 60), fig.align='center')
+library(leaflet)
+options("kableExtra.html.bsTable" = T)
+
+library(fasterize)
+library(janitor)
+library(raster)
+library(sf)
+library(tidyverse)
+library(htmltools)
+library(htmlwidgets)
+
+Points <- readRDS("Points.rds") %>% 
+  mutate(lavbund = ifelse(lavbund == 1, "Ja", "Nej"),
+         lavbund = ifelse(pgf25 == 1, "Ja", "Nej"))
+```
+
+## First test
+
+```{r}
+
+Points <- Points %>% st_transform(crs = "+proj=longlat +datum=WGS84")
+
+pal2 <- colorFactor(
+  palette = c('red', 'blue'),
+  domain = Points$Kategorina
+)
+
+
+l <-leaflet()
+
+esri <- grep("^Esri", providers, value = TRUE)
+esri <- esri[c(5,2,4,10)]
+
+for (provider in esri) {
+  l <- l %>% addProviderTiles(provider, group = provider) %>% 
+  leaflet::addCircles(data = as_Spatial(Points), color = ~pal2(Kategorina), popup = paste("<b>Skovomr:", Points$skovomr,"</b>", "<br>",
+                           "Lavbund:", Points$lavbund, "<br>",
+                           "Paragraph 25:", Points$lavbund))
+}
+
+l <- l %>%
+  addLayersControl(baseGroups = names(esri),
+                   options = layersControlOptions(collapsed = TRUE)) %>%
+  addMiniMap(tiles = esri[[4]], toggleDisplay = TRUE,
+             position = "topleft")
+
+l %>% addLegend("bottomright", pal = pal2, values = c("Urørt løvskov", "Urørt nåleskov") ,title = "Kategorina",opacity = 1)  %>%
+  addEasyButton(easyButton(
+    icon="fa-crosshairs", title="Locate Me",
+    onClick=JS("function(btn, map){ map.locate({setView: true}); }")))
+```
+
+
+
+## Second test (added measurement insted of inset map)
+
+```{r}
+l <-leaflet()
+
+esri <- grep("^Esri", providers, value = TRUE)
+esri <- esri[c(5,2,4,10)]
+
+for (provider in esri) {
+  l <- l %>% addProviderTiles(provider, group = provider) %>% 
+  leaflet::addCircles(data = as_Spatial(Points), color = ~pal2(Kategorina), popup = paste("<b>Skovomr:", Points$skovomr,"</b>", "<br>",
+                           "Lavbund:", Points$lavbund, "<br>",
+                           "Paragraph 25:", Points$lavbund))
+}
+
+l <- l %>%
+  addLayersControl(baseGroups = names(esri),
+                   options = layersControlOptions(collapsed = TRUE)) %>%
+  addMeasure(position = "topleft",
+             primaryLengthUnit = "meters",
+             primaryAreaUnit = "hectares")
+
+l %>% addLegend("bottomright", pal = pal2, values = c("Urørt løvskov", "Urørt nåleskov") ,title = "Kategorina",opacity = 1) %>%
+  addEasyButton(easyButton(
+    icon="fa-crosshairs", title="Locate Me",
+    onClick=JS("function(btn, map){ map.locate({setView: true}); }")))
+```
+
